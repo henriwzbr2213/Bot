@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = env("DB_PROVIDER")
+  url      = env("DATABASE_URL")
+}
+
+enum Region {
+  br
+  us
+}
+
+enum AppStatus {
+  created
+  uploading
+  building
+  deploying
+  running
+  stopped
+  error
+}
+
+model App {
+  id             String    @id @default(cuid())
+  ownerDiscordId String
+  name           String
+  region         Region
+  status         AppStatus @default(created)
+  runtime        String?   @default("unknown")
+  image          String?
+  zipGsUrl       String?
+  namespace      String?
+  deploymentName String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([ownerDiscordId, name])
+}

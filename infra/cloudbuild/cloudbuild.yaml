@@ -1,0 +1,53 @@
+substitutions:
+  _ZIP_GS_URL: ""
+  _IMAGE: ""
+  _APP_ID: ""
+  _LANG: ""
+
+steps:
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: fetch-zip
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        mkdir -p /workspace/src
+        gsutil cp "${_ZIP_GS_URL}" /workspace/app.zip
+        unzip -q /workspace/app.zip -d /workspace/src
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: detect-lang-and-template
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        LANG="${_LANG}"
+        if [[ -z "$LANG" ]]; then
+          if [[ -f /workspace/src/package.json ]]; then LANG=node; fi
+          if [[ -f /workspace/src/requirements.txt || -f /workspace/src/pyproject.toml ]]; then LANG=python; fi
+          if [[ -f /workspace/src/pom.xml || -f /workspace/src/build.gradle ]]; then LANG=java; fi
+        fi
+        if [[ -z "$LANG" ]]; then
+          echo "Linguagem não detectada" >&2
+          exit 1
+        fi
+        echo "$LANG" > /workspace/lang.txt
+        cp "/workspace/templates/${LANG}/Dockerfile" /workspace/src/Dockerfile
+
+  - name: gcr.io/cloud-builders/docker
+    id: build
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        docker build -t "${_IMAGE}" /workspace/src
+
+  - name: gcr.io/cloud-builders/docker
+    id: push
+    args: ["push", "${_IMAGE}"]
+
+images:
+  - "${_IMAGE}"
