@@ -71,9 +71,9 @@ export class K8sService {
     };
 
     try {
-      await appsApi.replaceNamespacedDeployment({ name: params.deploymentName, namespace: params.namespace, body });
+      await (appsApi as any).replaceNamespacedDeployment(params.deploymentName, params.namespace, body);
     } catch {
-      await appsApi.createNamespacedDeployment({ namespace: params.namespace, body });
+      await (appsApi as any).createNamespacedDeployment(params.namespace, body);
     }
   }
 
@@ -81,24 +81,32 @@ export class K8sService {
     if (env.MOCK_GCP) return;
     this.kc.setCurrentContext(this.contextForRegion(region));
     const appsApi = this.kc.makeApiClient(k8s.AppsV1Api);
-    await appsApi.patchNamespacedDeployment({
-      name: deploymentName,
+    await (appsApi as any).patchNamespacedDeployment(
+      deploymentName,
       namespace,
-      body: { spec: { template: { metadata: { annotations: { 'kubectl.kubernetes.io/restartedAt': new Date().toISOString() } } } } },
-      headers: { 'Content-Type': 'application/strategic-merge-patch+json' }
-    });
+      { spec: { template: { metadata: { annotations: { 'kubectl.kubernetes.io/restartedAt': new Date().toISOString() } } } } },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { headers: { 'Content-Type': 'application/strategic-merge-patch+json' } }
+    );
   }
 
   async stop(namespace: string, deploymentName: string, region: Region): Promise<void> {
     if (env.MOCK_GCP) return;
     this.kc.setCurrentContext(this.contextForRegion(region));
     const appsApi = this.kc.makeApiClient(k8s.AppsV1Api);
-    await appsApi.patchNamespacedDeploymentScale({
-      name: deploymentName,
+    await (appsApi as any).patchNamespacedDeploymentScale(
+      deploymentName,
       namespace,
-      body: { spec: { replicas: 0 } },
-      headers: { 'Content-Type': 'application/merge-patch+json' }
-    });
+      { spec: { replicas: 0 } },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { headers: { 'Content-Type': 'application/merge-patch+json' } }
+    );
   }
 
   async logs(_namespace: string, _deploymentName: string, _region: Region): Promise<string> {
@@ -107,9 +115,9 @@ export class K8sService {
 
   private async ensureNamespace(coreApi: k8s.CoreV1Api, namespace: string): Promise<void> {
     try {
-      await coreApi.readNamespace({ name: namespace });
+      await (coreApi as any).readNamespace(namespace);
     } catch {
-      await coreApi.createNamespace({ body: { metadata: { name: namespace } } });
+      await (coreApi as any).createNamespace({ metadata: { name: namespace } });
     }
   }
 }

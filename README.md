@@ -26,12 +26,12 @@ Monorepo de uma plataforma estilo Discloud: upload de `.zip` pelo Discord, build
 
 ## Fluxo `.up` com ticket privado
 
-1. Usuário executa `.up <nome>`.
+1. Usuário executa `.up` (sem nome).
 2. Bot valida cargo do usuário (`Neurion Basic` ou `Canary Premium`).
 3. Bot cria **ticket privado** (canal visível só para usuário + staff opcional).
 4. No ticket, o usuário escolhe região (`br` ou `us`) via seletor.
 5. Usuário envia `.zip` no ticket.
-6. Bot cria/recupera app, envia o zip para API e dispara build/deploy automático.
+6. Em `.up`, o nome da app é derivado automaticamente do nome do arquivo `.zip`; em `.commit`, o usuário escolhe qual app modificar quando tiver mais de uma.
 
 ## Fluxo técnico de deploy
 
@@ -75,10 +75,11 @@ Monorepo de uma plataforma estilo Discloud: upload de `.zip` pelo Discord, build
 ## Comandos do bot
 
 - `.plans`
-- `.up <nome>` (**abre ticket privado**)
-- `.commit <nome> <br|us>` (rebuild direto com anexo zip)
+- `.up` (**reage ✅ e abre ticket privado sem precisar de nome**)
+- `.commit` (**reage ✅ e abre ticket; se houver múltiplos bots, permite escolher qual modificar**)
 - `.status <nome>`
 - `.logs <nome>`
+- `.console <nome>` (atalho para visualizar logs/console)
 - `.restart <nome>`
 - `.stop <nome>`
 - `.move <nome> <br|us>`
