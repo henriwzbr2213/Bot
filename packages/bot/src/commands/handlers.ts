@@ -233,6 +233,11 @@ export async function handleCommand(message: Message, prefix: string) {
     if (!app) return void (await message.reply('App não encontrada.'));
     await api.move(app.id, region);
     return void (await message.reply(`App ${name} movida para ${region.toUpperCase()}.`));
+    if (!name || !region || !['br', 'us'].includes(region)) return void message.reply(`Uso: ${prefix}move <nome> <br|us>`);
+    const app = await api.statusByName(message.author.id, name);
+    if (!app) return void message.reply('App não encontrada.');
+    await api.move(app.id, region);
+    await message.reply(`App ${name} movida para ${region.toUpperCase()}.`);
   }
 }
 
@@ -271,5 +276,35 @@ export async function handleSelectInteraction(interaction: Interaction) {
     }
 
     return void (await interaction.reply({ content: 'Free Tier do tipo **bot** selecionado. Agora envie o `.zip` no ticket.', ephemeral: true }));
+  if (interaction.customId.startsWith('ticket_region:')) {
+    const channelId = interaction.customId.split(':')[1];
+    const session = ticketSessions.get(channelId);
+    if (!session) return void interaction.reply({ content: 'Sessão de ticket expirada.', ephemeral: true });
+    if (interaction.user.id !== session.ownerId) {
+      return void interaction.reply({ content: 'Apenas o dono do ticket pode usar isso.', ephemeral: true });
+    }
+
+    session.region = interaction.values[0] as Region;
+    ticketSessions.set(channelId, session);
+
+    return void interaction.reply({ content: `Região definida para **${session.region.toUpperCase()}**.`, ephemeral: true });
+  }
+
+  if (interaction.customId.startsWith('ticket_app:')) {
+    const channelId = interaction.customId.split(':')[1];
+    const session = ticketSessions.get(channelId);
+    if (!session) return void interaction.reply({ content: 'Sessão de ticket expirada.', ephemeral: true });
+    if (interaction.user.id !== session.ownerId) {
+      return void interaction.reply({ content: 'Apenas o dono do ticket pode usar isso.', ephemeral: true });
+    }
+
+    session.targetAppId = interaction.values[0];
+    session.targetAppName = interaction.component.options.find((o) => o.value === session.targetAppId)?.label;
+    ticketSessions.set(channelId, session);
+
+    return void interaction.reply({
+      content: `App selecionada: **${session.targetAppName ?? session.targetAppId}**. Agora envie o .zip.`,
+      ephemeral: true
+    });
   }
 }

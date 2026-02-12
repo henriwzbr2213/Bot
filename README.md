@@ -110,6 +110,9 @@ Monorepo de uma plataforma estilo Discloud: upload de `.zip` pelo Discord, build
    npm run dev
    # ou apenas frontend
    npm run dev -w @discloud-gke/web  # http://localhost:5173
+5. Suba API + bot:
+   ```bash
+   npm run dev
    ```
 
 ## Variáveis importantes do bot (tickets)
