@@ -5,18 +5,38 @@ Monorepo de uma plataforma estilo Discloud: upload de `.zip` pelo Discord, build
 ## Arquitetura
 
 - **packages/api**: control-plane (Fastify + TypeScript + Prisma).
-- **packages/bot**: bot Discord (`discord.js` v14).
-- **packages/shared**: tipos e planos compartilhados.
+- **packages/bot**: bot Discord (`discord.js` v14) com sistema de ticket privado para upload.
+- **packages/shared**: tipos/plans/regiões compartilhadas.
 - **infra/**:
   - `cloudbuild/cloudbuild.yaml`: pipeline de build por zip.
   - `gke/manifests`: manifesto base de deployment seguro.
   - `scripts`: bootstrap GCP (APIs, buckets, Artifact Registry, GKE regional, IAM).
 - **templates/**: Dockerfiles por linguagem (`node`, `python`, `java`).
 
-## Fluxo principal
+## Planos por cargo Discord
 
-1. Usuário executa `.up <nome> <br|us>` com anexo `.zip`.
-2. Bot chama API e sobe o arquivo em `POST /apps/:id/upload`.
+- **Neurion Basic**
+  - Upload até **200MB**
+  - CPU limite por app: **1 vCPU** (`1000m`)
+  - Até **1 bot ativo**
+- **Canary Premium**
+  - Upload até **500MB**
+  - CPU limite por app: **2 vCPU** (`2000m`)
+  - Até **3 bots ativos**
+
+## Fluxo `.up` com ticket privado
+
+1. Usuário executa `.up <nome>`.
+2. Bot valida cargo do usuário (`Neurion Basic` ou `Canary Premium`).
+3. Bot cria **ticket privado** (canal visível só para usuário + staff opcional).
+4. No ticket, o usuário escolhe região (`br` ou `us`) via seletor.
+5. Usuário envia `.zip` no ticket.
+6. Bot cria/recupera app, envia o zip para API e dispara build/deploy automático.
+
+## Fluxo técnico de deploy
+
+1. Bot chama API e envia zip em `POST /apps/:id/upload`.
+2. API valida limite de upload pelo plano.
 3. API salva no bucket da região (`bucket-br`/`bucket-us`).
 4. API dispara Cloud Build com substitutions:
    - `_ZIP_GS_URL`
@@ -28,6 +48,7 @@ Monorepo de uma plataforma estilo Discloud: upload de `.zip` pelo Discord, build
    - namespace: `ns-u-<discordUserId>`
    - deployment: `app-<appId>`
    - `replicas=1`
+   - CPU limit baseado no plano (`1000m`/`2000m`)
 7. Bot retorna status/logs/restart/stop/move.
 
 ## Segurança Kubernetes
@@ -41,7 +62,7 @@ Monorepo de uma plataforma estilo Discloud: upload de `.zip` pelo Discord, build
 ## Endpoints da API
 
 - `POST /auth/discord` (stub com `userId`)
-- `POST /apps`
+- `POST /apps` (agora recebe metadados de plano e limites)
 - `GET /apps`
 - `GET /apps/:id`
 - `POST /apps/:id/upload` (multipart zip)
@@ -54,8 +75,8 @@ Monorepo de uma plataforma estilo Discloud: upload de `.zip` pelo Discord, build
 ## Comandos do bot
 
 - `.plans`
-- `.up <nome> <br|us>`
-- `.commit <nome> <br|us>`
+- `.up <nome>` (**abre ticket privado**)
+- `.commit <nome> <br|us>` (rebuild direto com anexo zip)
 - `.status <nome>`
 - `.logs <nome>`
 - `.restart <nome>`
@@ -63,8 +84,6 @@ Monorepo de uma plataforma estilo Discloud: upload de `.zip` pelo Discord, build
 - `.move <nome> <br|us>`
 
 ## Rodando local (mock GCP)
-
-> Recomendado para desenvolvimento inicial sem custo em nuvem.
 
 1. Copie variáveis:
    ```bash
@@ -87,6 +106,11 @@ Monorepo de uma plataforma estilo Discloud: upload de `.zip` pelo Discord, build
    ```bash
    npm run dev
    ```
+
+## Variáveis importantes do bot (tickets)
+
+- `TICKET_CATEGORY_ID`: categoria Discord para tickets (opcional)
+- `TICKET_STAFF_ROLE_ID`: role staff que pode ver tickets (opcional)
 
 ## Deploy em GCP (produção)
 
@@ -128,19 +152,4 @@ Para produção:
 - `MOCK_GCP=false`
 - `DB_PROVIDER=postgresql`
 - `DATABASE_URL=postgresql://...`
-
-### 5) Banco em produção
-
-- Execute migrações:
-  ```bash
-  npm run prisma:migrate:dev -w @discloud-gke/api -- --name init
-  # ou
-  npm run prisma:deploy -w @discloud-gke/api
-  ```
-
-## Observações importantes
-
-- O endpoint de logs está funcional em modo mock; em produção está preparado para evolução com leitura de pod logs em streaming.
-- O worker está abstraído via interface `BuildQueue`, atualmente com implementação inline (`InlineBuildQueue`), facilitando mover para Pub/Sub/Cloud Tasks no futuro.
-- `infra/cloudbuild/cloudbuild.yaml` está pronto para execução por trigger/job dedicado.
 

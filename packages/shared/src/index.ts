@@ -1,5 +1,7 @@
 export type Region = 'br' | 'us';
 
+export type PlanId = 'neurion-basic' | 'canary-premium';
+
 export type AppRuntime = 'node' | 'python' | 'java' | 'unknown';
 
 export type AppStatus =
@@ -12,29 +14,34 @@ export type AppStatus =
   | 'error';
 
 export interface PlanInfo {
-  id: Region;
+  id: PlanId;
   label: string;
-  description: string;
-  priceHint: string;
+  roleName: string;
+  maxUploadMb: number;
+  cpuLimit: string;
+  maxHostedBots: number;
 }
 
-export const PLANS: PlanInfo[] = [
+export const USER_PLANS: PlanInfo[] = [
   {
-    id: 'br',
-    label: 'Brasil (baixa latência)',
-    description: 'Ideal para bots com público brasileiro.',
-    priceHint: 'Maior custo / menor ping'
+    id: 'neurion-basic',
+    label: 'Neurion Basic',
+    roleName: 'Neurion Basic',
+    maxUploadMb: 200,
+    cpuLimit: '1000m',
+    maxHostedBots: 1
   },
   {
-    id: 'us',
-    label: 'Estados Unidos (econômico)',
-    description: 'Ideal para workloads custo-efetivos.',
-    priceHint: 'Menor custo / maior ping'
+    id: 'canary-premium',
+    label: 'Canary Premium',
+    roleName: 'Canary Premium',
+    maxUploadMb: 500,
+    cpuLimit: '2000m',
+    maxHostedBots: 3
   }
 ];
 
-export interface CreateAppInput {
-  ownerDiscordId: string;
-  name: string;
-  region: Region;
-}
+export const REGIONS: Array<{ id: Region; label: string; description: string }> = [
+  { id: 'br', label: 'Brasil', description: 'Baixa latência para usuários BR' },
+  { id: 'us', label: 'Estados Unidos', description: 'Opção mais econômica' }
+];

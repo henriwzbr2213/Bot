@@ -5,26 +5,69 @@ import { GcpService } from './gcp';
 import { K8sService } from './k8s';
 import { InlineBuildQueue } from '../types/worker';
 
+type CreateInput = {
+  ownerDiscordId: string;
+  name: string;
+  region: Region;
+  plan: 'neurion-basic' | 'canary-premium';
+  maxUploadMb: number;
+  cpuLimit: string;
+  maxHostedBots: number;
+};
+
 export class AppService {
   private gcp = new GcpService();
   private k8s = new K8sService();
   private buildQueue = new InlineBuildQueue(async (payload) => {
     await prisma.app.update({ where: { id: payload.appId }, data: { status: AppStatus.building } });
     await this.gcp.triggerCloudBuild({ appId: payload.appId, zipGsUrl: payload.zipGsUrl, image: payload.image });
+
+    const app = await this.mustGet(payload.appId);
+
     await prisma.app.update({ where: { id: payload.appId }, data: { image: payload.image, status: AppStatus.deploying } });
     const namespace = `${env.K8S_NAMESPACE_PREFIX}${payload.ownerId}`;
     const deploymentName = `app-${payload.appId}`;
-    await this.k8s.deployApp({ appId: payload.appId, ownerId: payload.ownerId, image: payload.image, region: payload.region, namespace, deploymentName });
+
+    await this.k8s.deployApp({
+      appId: payload.appId,
+      ownerId: payload.ownerId,
+      image: payload.image,
+      region: payload.region,
+      namespace,
+      deploymentName,
+      cpuLimit: app.cpuLimit
+    });
+
     await prisma.app.update({ where: { id: payload.appId }, data: { namespace, deploymentName, status: AppStatus.running } });
   });
 
   authDiscord(userId: string) { return Promise.resolve({ userId, token: `stub-${userId}` }); }
-  create(data: { ownerDiscordId: string; name: string; region: Region }) { return prisma.app.create({ data }); }
+
+  async create(data: CreateInput) {
+    const activeApps = await prisma.app.count({
+      where: {
+        ownerDiscordId: data.ownerDiscordId,
+        status: { in: [AppStatus.created, AppStatus.uploading, AppStatus.building, AppStatus.deploying, AppStatus.running] }
+      }
+    });
+
+    if (activeApps >= data.maxHostedBots) {
+      throw new Error(`Limite do plano atingido: máximo ${data.maxHostedBots} bots ativos.`);
+    }
+
+    return prisma.app.create({ data });
+  }
+
   list(ownerDiscordId?: string) { return prisma.app.findMany({ where: ownerDiscordId ? { ownerDiscordId } : undefined, orderBy: { updatedAt: 'desc' } }); }
   get(id: string) { return prisma.app.findUnique({ where: { id } }); }
 
   async uploadZip(appId: string, zip: Buffer) {
     const app = await this.mustGet(appId);
+    const uploadBytesLimit = app.maxUploadMb * 1024 * 1024;
+    if (zip.length > uploadBytesLimit) {
+      throw new Error(`Arquivo excede limite do plano (${app.maxUploadMb}MB).`);
+    }
+
     await prisma.app.update({ where: { id: app.id }, data: { status: AppStatus.uploading } });
     const zipGsUrl = await this.gcp.uploadZip(app.region as 'br' | 'us', `${app.ownerDiscordId}/${app.id}/${Date.now()}.zip`, zip);
     const image = this.gcp.getImagePath(app.id);
@@ -62,7 +105,15 @@ export class AppService {
     const app = await this.mustGet(appId);
     await prisma.app.update({ where: { id: app.id }, data: { region, status: AppStatus.deploying } });
     if (app.image) {
-      await this.k8s.deployApp({ appId: app.id, ownerId: app.ownerDiscordId, region: region as 'br' | 'us', image: app.image, namespace: app.namespace ?? `${env.K8S_NAMESPACE_PREFIX}${app.ownerDiscordId}`, deploymentName: app.deploymentName ?? `app-${app.id}` });
+      await this.k8s.deployApp({
+        appId: app.id,
+        ownerId: app.ownerDiscordId,
+        region: region as 'br' | 'us',
+        image: app.image,
+        namespace: app.namespace ?? `${env.K8S_NAMESPACE_PREFIX}${app.ownerDiscordId}`,
+        deploymentName: app.deploymentName ?? `app-${app.id}`,
+        cpuLimit: app.cpuLimit
+      });
     }
     return prisma.app.update({ where: { id: app.id }, data: { status: AppStatus.running } });
   }

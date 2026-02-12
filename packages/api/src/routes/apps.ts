@@ -7,8 +7,25 @@ export async function appRoutes(app: FastifyInstance) {
   const service = new AppService();
 
   app.post('/apps', async (req) => {
-    const body = z.object({ ownerDiscordId: z.string(), name: z.string().min(2), region: z.enum(['br', 'us']) }).parse(req.body);
-    return service.create({ ...body, region: body.region as Region });
+    const body = z.object({
+      ownerDiscordId: z.string(),
+      name: z.string().min(2),
+      region: z.enum(['br', 'us']),
+      plan: z.enum(['neurion-basic', 'canary-premium']),
+      maxUploadMb: z.number().int().positive(),
+      cpuLimit: z.string(),
+      maxHostedBots: z.number().int().positive()
+    }).parse(req.body);
+
+    return service.create({
+      ownerDiscordId: body.ownerDiscordId,
+      name: body.name,
+      region: body.region as Region,
+      plan: body.plan,
+      maxUploadMb: body.maxUploadMb,
+      cpuLimit: body.cpuLimit,
+      maxHostedBots: body.maxHostedBots
+    });
   });
 
   app.get('/apps', async (req) => {
