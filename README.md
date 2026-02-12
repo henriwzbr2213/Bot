@@ -112,9 +112,6 @@ Monorepo de uma plataforma estilo Discloud: upload de `.zip` pelo Discord, build
    npm run dev
    # ou apenas frontend
    npm run dev -w @discloud-gke/web  # http://localhost:5173
-5. Suba API + bot:
-   ```bash
-   npm run dev
    ```
 
 ## Variáveis importantes do bot (tickets)
@@ -176,6 +173,12 @@ Para produção:
 
 ## Frontend (login/cadastro + dashboard)
 
+- O frontend foi inspirado no layout de cloud console: área de autenticação com painel esquerdo claro + painel direito escuro com glow, e dashboard all-black estilo IBM Cloud.
+- Fluxo atual:
+  - Cadastro em PostgreSQL via API (`/auth/register`) com senha forte obrigatória e detecção de email duplicado (retorno 409).
+  - Login via API (`/auth/login`) com verificação segura de senha hash (`scrypt` (Node crypto)).
+  - Dashboard para administração visual de recursos, plano e status Free Tier.
+  - Após cadastro/login com sucesso: redirecionamento automático para o dashboard.
 - O frontend foi inspirado no layout de cloud console, agora com dashboard all-black no estilo IBM Cloud.
 - Fluxo atual:
   - Cadastro em PostgreSQL via API (`/auth/register`) com senha forte obrigatória.

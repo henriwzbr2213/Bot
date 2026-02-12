@@ -1,4 +1,4 @@
-import { AppStatus, Region } from '@prisma/client';
+import { AppStatus, Region, Prisma } from '@prisma/client';
 import { env } from '../config/env';
 import { prisma } from '../utils/prisma';
 import { GcpService } from './gcp';
@@ -53,16 +53,46 @@ export class AppService {
       throw new Error('Senha fraca. Use ao menos 10 caracteres com maiúscula, minúscula, número e símbolo.');
     }
 
-    const existing = await prisma.user.findUnique({ where: { email } });
+    let existing;
+    try {
+      existing = await prisma.user.findUnique({ where: { email } });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientInitializationError) {
+        throw new Error('Banco de dados indisponível no momento.');
+      }
+      throw error;
+    }
+
     if (existing) throw new Error('Email já cadastrado.');
 
     const passwordHash = this.hashPassword(data.password);
-    const user = await prisma.user.create({ data: { name: data.name, email, passwordHash } });
-    return { id: user.id, name: user.name, email: user.email };
+
+    try {
+      const user = await prisma.user.create({ data: { name: data.name, email, passwordHash } });
+      return { id: user.id, name: user.name, email: user.email };
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new Error('Email já cadastrado.');
+      }
+      if (error instanceof Prisma.PrismaClientInitializationError) {
+        throw new Error('Banco de dados indisponível no momento.');
+      }
+      throw error;
+    }
   }
 
   async loginUser(data: { email: string; password: string }) {
     const email = data.email.trim().toLowerCase();
+    let user;
+    try {
+      user = await prisma.user.findUnique({ where: { email } });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientInitializationError) {
+        throw new Error('Banco de dados indisponível no momento.');
+      }
+      throw error;
+    }
+
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) throw new Error('Usuário não encontrado.');
 

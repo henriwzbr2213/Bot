@@ -6,6 +6,14 @@ import { authRoutes } from './routes/auth';
 import { appRoutes } from './routes/apps';
 import { freeTierRoutes } from './routes/freetier';
 
+function statusFromMessage(message: string): number {
+  if (message.includes('Email já cadastrado')) return 409;
+  if (message.includes('Usuário não encontrado') || message.includes('Senha inválida')) return 401;
+  if (message.includes('Senha fraca') || message.includes('As senhas não conferem')) return 422;
+  if (message.includes('Banco de dados indisponível')) return 503;
+  return 400;
+}
+
 export async function buildServer() {
   const app = Fastify({ logger: true });
 
@@ -22,8 +30,13 @@ export async function buildServer() {
   await app.register(freeTierRoutes);
 
   app.setErrorHandler((error, _req, reply) => {
-    const message = error instanceof Error ? error.message : 'Erro interno';
-    reply.status(400).send({ message });
+    const rawMessage = error instanceof Error ? error.message : 'Erro interno';
+    const status = statusFromMessage(rawMessage);
+    const message = status === 400 && !rawMessage.includes('Email') && !rawMessage.includes('Senha')
+      ? 'Não foi possível processar sua solicitação.'
+      : rawMessage;
+
+    reply.status(status).send({ message });
   });
 
   app.get('/healthz', async () => ({ ok: true }));

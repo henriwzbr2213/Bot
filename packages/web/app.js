@@ -19,6 +19,7 @@ const cardsGrid = document.getElementById('cards-grid');
 const welcome = document.getElementById('welcome');
 
 let isLogin = true;
+let isSubmitting = false;
 
 const cards = [
   { title: 'Build', desc: 'Explore IBM Cloud with this selection of easy starter tutorials and services.' },
@@ -60,6 +61,12 @@ function setRoute(route) {
   window.location.hash = route;
 }
 
+function setLoading(loading) {
+  isSubmitting = loading;
+  submitBtn.disabled = loading;
+  submitBtn.textContent = loading ? 'Processing...' : isLogin ? 'Login with email' : 'Create account';
+}
+
 function renderAuthMode() {
   authTitle.textContent = isLogin ? 'Log into your account' : 'Create your account';
   submitBtn.textContent = isLogin ? 'Login with email' : 'Create account';
@@ -74,6 +81,7 @@ function renderAuthMode() {
 
   setError('');
   setSuccess('');
+  setLoading(false);
 }
 
 function showDashboard(user) {
@@ -89,7 +97,25 @@ function showAuth() {
   setRoute('auth');
 }
 
+async function parseApiResponse(response) {
+  const text = await response.text();
+  let data;
+
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = { message: text || 'Erro desconhecido' };
+  }
+
+  if (!response.ok) {
+    throw new Error(data?.message || 'Falha na requisição');
+  }
+
+  return data;
+}
+
 switchModeBtn.addEventListener('click', () => {
+  if (isSubmitting) return;
   isLogin = !isLogin;
   renderAuthMode();
 });
@@ -106,6 +132,7 @@ passwordInput.addEventListener('input', () => {
 
 document.getElementById('auth-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (isSubmitting) return;
 
   const email = emailInput.value.trim().toLowerCase();
   const password = passwordInput.value;
@@ -115,6 +142,8 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     return;
   }
 
+  setLoading(true);
+
   try {
     if (isLogin) {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -123,6 +152,7 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
         body: JSON.stringify({ email, password })
       });
 
+      const data = await parseApiResponse(response);
       const data = await response.json();
       if (!response.ok) throw new Error(data?.message || 'Falha no login.');
 
@@ -137,6 +167,11 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     const confirm = confirmPasswordInput.value;
 
     if (!STRONG_PASSWORD.test(password)) {
+      throw new Error('Use senha forte: mínimo 10 chars com maiúscula, minúscula, número e símbolo.');
+    }
+
+    if (password !== confirm) {
+      throw new Error('As senhas não conferem.');
       setError('Use senha forte: mínimo 10 chars com maiúscula, minúscula, número e símbolo.');
       return;
     }
@@ -152,6 +187,7 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
       body: JSON.stringify({ name, email, password })
     });
 
+    const data = await parseApiResponse(response);
     const data = await response.json();
     if (!response.ok) throw new Error(data?.message || 'Falha no cadastro.');
 
@@ -161,6 +197,10 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     showDashboard(data);
   } catch (error) {
     setSuccess('');
+    const message = error instanceof Error ? error.message : 'Erro inesperado';
+    setError(message.includes('Email já cadastrado') ? 'Já existe uma conta com este email.' : message);
+  } finally {
+    setLoading(false);
     setError(error instanceof Error ? error.message : 'Erro inesperado');
   }
 });
