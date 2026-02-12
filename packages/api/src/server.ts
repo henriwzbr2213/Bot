@@ -4,6 +4,7 @@ import multipart from '@fastify/multipart';
 import { env } from './config/env';
 import { authRoutes } from './routes/auth';
 import { appRoutes } from './routes/apps';
+import { freeTierRoutes } from './routes/freetier';
 
 export async function buildServer() {
   const app = Fastify({ logger: true });
@@ -18,6 +19,7 @@ export async function buildServer() {
 
   await app.register(authRoutes);
   await app.register(appRoutes);
+  await app.register(freeTierRoutes);
 
   app.get('/healthz', async () => ({ ok: true }));
 

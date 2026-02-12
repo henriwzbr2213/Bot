@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "build": "npm run build -ws",
-    "dev": "concurrently \"npm run dev -w @discloud-gke/api\" \"npm run dev -w @discloud-gke/bot\"",
+    "dev": "concurrently \"npm run dev -w @discloud-gke/api\" \"npm run dev -w @discloud-gke/bot\" \"npm run dev -w @discloud-gke/web\"",
     "lint": "npm run lint -ws",
     "format": "prettier --write ."
   },

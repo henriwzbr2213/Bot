@@ -6,6 +6,7 @@ Monorepo de uma plataforma estilo Discloud: upload de `.zip` pelo Discord, build
 
 - **packages/api**: control-plane (Fastify + TypeScript + Prisma).
 - **packages/bot**: bot Discord (`discord.js` v14) com sistema de ticket privado para upload.
+- **packages/web**: frontend web com login/cadastro e dashboard de administração.
 - **packages/shared**: tipos/plans/regiões compartilhadas.
 - **infra/**:
   - `cloudbuild/cloudbuild.yaml`: pipeline de build por zip.
@@ -80,6 +81,7 @@ Monorepo de uma plataforma estilo Discloud: upload de `.zip` pelo Discord, build
 - `.status <nome>`
 - `.logs <nome>`
 - `.console <nome>` (atalho para visualizar logs/console)
+- `.freetier` (abre ticket para escolher bot/minecraft/hytale por 30 dias)
 - `.restart <nome>`
 - `.stop <nome>`
 - `.move <nome> <br|us>`
@@ -103,6 +105,11 @@ Monorepo de uma plataforma estilo Discloud: upload de `.zip` pelo Discord, build
    npm run prisma:generate -w @discloud-gke/api
    npm run prisma:migrate:dev -w @discloud-gke/api -- --name init
    ```
+5. Suba API + bot + frontend:
+   ```bash
+   npm run dev
+   # ou apenas frontend
+   npm run dev -w @discloud-gke/web  # http://localhost:5173
 5. Suba API + bot:
    ```bash
    npm run dev
@@ -154,3 +161,24 @@ Para produção:
 - `DB_PROVIDER=postgresql`
 - `DATABASE_URL=postgresql://...`
 
+
+
+## Free Tier
+
+- Comando `.freetier` abre ticket privado.
+- No ticket, o usuário escolhe:
+  - `bot`: seleciona app/bot e envia `.zip`.
+  - `minecraft` ou `hytale`: cria hospedagem de jogo por 30 dias.
+- Em caso de abuso de recursos, o serviço Free Tier pode ser suspenso.
+
+
+## Frontend (login/cadastro + dashboard)
+
+- O frontend foi inspirado no layout de cloud console: tela de autenticação split-screen e dashboard com cards de recursos, em HTML/CSS/JS para um MVP rápido.
+- Fluxo atual:
+  - Cadastro com nome/email/senha (mock em `localStorage`).
+  - Login por email/senha (com botões sociais simulados).
+  - Dashboard para administração visual de recursos, plano e status Free Tier.
+- URL local padrão: `http://localhost:5173`.
+
+> Observação: autenticação está em modo local/mock no frontend para acelerar MVP. Em produção, conecte com endpoints reais de auth da API.

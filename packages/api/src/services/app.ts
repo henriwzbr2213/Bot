@@ -118,6 +118,50 @@ export class AppService {
     return prisma.app.update({ where: { id: app.id }, data: { status: AppStatus.running } });
   }
 
+
+
+  async createFreeTier(data: { ownerDiscordId: string; type: 'bot' | 'minecraft' | 'hytale'; targetAppId?: string }) {
+    const active = await prisma.freeTierService.count({ where: { ownerDiscordId: data.ownerDiscordId, status: 'active' } });
+    if (active >= 1) throw new Error('Você já possui um serviço Free Tier ativo.');
+
+    if (data.type === 'bot' && !data.targetAppId) {
+      throw new Error('Free tier de bot exige targetAppId.');
+    }
+
+    const endsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    return prisma.freeTierService.create({
+      data: {
+        ownerDiscordId: data.ownerDiscordId,
+        type: data.type,
+        targetAppId: data.targetAppId,
+        status: 'active',
+        endsAt
+      }
+    });
+  }
+
+  listFreeTier(ownerDiscordId: string) {
+    return prisma.freeTierService.findMany({ where: { ownerDiscordId }, orderBy: { createdAt: 'desc' } });
+  }
+
+  async reportFreeTierAbuse(id: string, reason: string) {
+    const current = await prisma.freeTierService.findUnique({ where: { id } });
+    if (!current) throw new Error('Serviço free tier não encontrado.');
+
+    const strikes = current.abuseStrikes + 1;
+    const shouldSuspend = strikes >= 1;
+
+    return prisma.freeTierService.update({
+      where: { id },
+      data: {
+        abuseStrikes: strikes,
+        status: shouldSuspend ? 'suspended' : current.status,
+        suspendReason: shouldSuspend ? reason : current.suspendReason
+      }
+    });
+  }
+
   private async mustGet(id: string) {
     const app = await prisma.app.findUnique({ where: { id } });
     if (!app) throw new Error('App não encontrada');

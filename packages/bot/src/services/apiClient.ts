@@ -83,3 +83,33 @@ export class ApiClient {
     return data.logs;
   }
 }
+
+
+export interface FreeTierServiceModel {
+  id: string;
+  ownerDiscordId: string;
+  type: 'bot' | 'minecraft' | 'hytale';
+  targetAppId?: string;
+  status: 'active' | 'suspended' | 'expired';
+  endsAt: string;
+  abuseStrikes: number;
+  suspendReason?: string;
+}
+
+export class FreeTierApiClient extends ApiClient {
+  async listFreeTierServices(ownerDiscordId: string): Promise<FreeTierServiceModel[]> {
+    const res = await fetch(`${API_BASE_URL}/freetier/services?ownerDiscordId=${ownerDiscordId}`);
+    return res.json();
+  }
+
+  async createFreeTierService(payload: { ownerDiscordId: string; type: 'bot' | 'minecraft' | 'hytale'; targetAppId?: string }) {
+    const res = await fetch(`${API_BASE_URL}/freetier/services`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<FreeTierServiceModel>;
+  }
+}

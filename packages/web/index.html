@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Discloud GKE - Cloud Panel</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="auth-screen" class="split-screen">
+      <section class="panel-left">
+        <div class="brand">x1</div>
+        <form id="auth-form" class="auth-card">
+          <h1 id="auth-title">Log into your account</h1>
+          <input id="name" placeholder="Nome" class="hidden" />
+          <input id="email" type="email" placeholder="Email" required />
+          <input id="password" type="password" placeholder="Senha" required />
+          <button class="btn btn-primary" type="submit" id="submit-btn">Login with email</button>
+          <button class="btn" type="button">Login with Google</button>
+          <button class="btn" type="button">Login with Discord</button>
+          <p id="error" class="error hidden"></p>
+          <p class="switch-mode">
+            <span id="switch-copy">Don't have an account?</span>
+            <button id="switch-mode" type="button">Sign up</button>
+          </p>
+        </form>
+      </section>
+      <section class="panel-right">
+        <div class="glow"></div>
+        <div class="overlay-logo">X1</div>
+      </section>
+    </div>
+
+    <main id="dashboard-screen" class="dashboard hidden">
+      <header class="dashboard-header">
+        <div>
+          <h1>Dashboard</h1>
+          <p id="welcome"></p>
+        </div>
+        <div class="header-actions">
+          <button class="btn">Create resource</button>
+          <button id="logout" class="btn btn-primary">Logout</button>
+        </div>
+      </header>
+
+      <section class="cards-grid" id="cards-grid"></section>
+
+      <section class="info-grid">
+        <div class="dash-card"><h3>Apps por região</h3><p>BR: 2 apps • US: 1 app</p></div>
+        <div class="dash-card"><h3>Plano atual</h3><p>Canary Premium</p></div>
+        <div class="dash-card"><h3>Free Tier</h3><p>Minecraft ativo por 30 dias</p></div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

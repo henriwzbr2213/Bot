@@ -41,3 +41,32 @@ model App {
 
   @@unique([ownerDiscordId, name])
 }
+
+
+enum FreeTierType {
+  bot
+  minecraft
+  hytale
+}
+
+enum FreeTierStatus {
+  active
+  suspended
+  expired
+}
+
+model FreeTierService {
+  id             String         @id @default(cuid())
+  ownerDiscordId String
+  type           FreeTierType
+  targetAppId    String?
+  status         FreeTierStatus @default(active)
+  startsAt       DateTime       @default(now())
+  endsAt         DateTime
+  abuseStrikes   Int            @default(0)
+  suspendReason  String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([ownerDiscordId, status])
+}
