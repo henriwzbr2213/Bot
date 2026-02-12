@@ -21,6 +21,11 @@ export async function buildServer() {
   await app.register(appRoutes);
   await app.register(freeTierRoutes);
 
+  app.setErrorHandler((error, _req, reply) => {
+    const message = error instanceof Error ? error.message : 'Erro interno';
+    reply.status(400).send({ message });
+  });
+
   app.get('/healthz', async () => ({ ok: true }));
 
   return app;

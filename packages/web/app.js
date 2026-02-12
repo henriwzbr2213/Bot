@@ -1,5 +1,6 @@
-const USER_KEY = 'discloud-user';
 const SESSION_KEY = 'discloud-session';
+const API_BASE_URL = window.DISCOULD_API_BASE_URL || 'http://localhost:3000';
+const STRONG_PASSWORD = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{10,}$/;
 
 const authScreen = document.getElementById('auth-screen');
 const dashboardScreen = document.getElementById('dashboard-screen');
@@ -10,17 +11,22 @@ const submitBtn = document.getElementById('submit-btn');
 const nameInput = document.getElementById('name');
 const emailInput = document.getElementById('email');
 const passwordInput = document.getElementById('password');
+const confirmPasswordInput = document.getElementById('confirm-password');
+const passwordHint = document.getElementById('password-hint');
 const errorNode = document.getElementById('error');
+const successNode = document.getElementById('success');
 const cardsGrid = document.getElementById('cards-grid');
 const welcome = document.getElementById('welcome');
 
 let isLogin = true;
 
 const cards = [
-  { title: 'Build', desc: 'Gerencie uploads e builds do Cloud Build com um clique.' },
-  { title: 'Resource summary', desc: 'Monitore apps, uso por região e planos em tempo real.' },
-  { title: 'Planned maintenance', desc: 'Acompanhe eventos e manutenção de clusters BR/US.' },
-  { title: 'Cloud status', desc: 'Visualize status operacional e alertas da plataforma.' }
+  { title: 'Build', desc: 'Explore IBM Cloud with this selection of easy starter tutorials and services.' },
+  { title: 'Save the date', desc: 'Hear how enterprises are driving transformation without compromise.' },
+  { title: 'Monitor your resources', desc: 'Get visibility into the performance and health of your resources.' },
+  { title: 'Infrastructure as Code', desc: 'Different approaches to use and how each impacts your environment.' },
+  { title: 'Build and deploy apps', desc: 'Go from zero to production in minutes with your applications.' },
+  { title: 'Starter kits', desc: 'Generate cloud-native apps and get started quickly.' }
 ];
 
 cards.forEach((card) => {
@@ -40,20 +46,47 @@ function setError(text = '') {
   errorNode.classList.remove('hidden');
 }
 
+function setSuccess(text = '') {
+  if (!text) {
+    successNode.textContent = '';
+    successNode.classList.add('hidden');
+    return;
+  }
+  successNode.textContent = text;
+  successNode.classList.remove('hidden');
+}
+
+function setRoute(route) {
+  window.location.hash = route;
+}
+
 function renderAuthMode() {
   authTitle.textContent = isLogin ? 'Log into your account' : 'Create your account';
   submitBtn.textContent = isLogin ? 'Login with email' : 'Create account';
   switchCopy.textContent = isLogin ? "Don't have an account?" : 'Already have an account?';
   switchModeBtn.textContent = isLogin ? 'Sign up' : 'Login';
+
   nameInput.classList.toggle('hidden', isLogin);
+  confirmPasswordInput.classList.toggle('hidden', isLogin);
+  passwordHint.classList.toggle('hidden', isLogin);
   nameInput.required = !isLogin;
+  confirmPasswordInput.required = !isLogin;
+
   setError('');
+  setSuccess('');
 }
 
 function showDashboard(user) {
   welcome.textContent = `Bem-vindo, ${user.name}`;
   authScreen.classList.add('hidden');
   dashboardScreen.classList.remove('hidden');
+  setRoute('dashboard');
+}
+
+function showAuth() {
+  dashboardScreen.classList.add('hidden');
+  authScreen.classList.remove('hidden');
+  setRoute('auth');
 }
 
 switchModeBtn.addEventListener('click', () => {
@@ -61,35 +94,91 @@ switchModeBtn.addEventListener('click', () => {
   renderAuthMode();
 });
 
-document.getElementById('auth-form').addEventListener('submit', (e) => {
+passwordInput.addEventListener('input', () => {
+  if (isLogin) return;
+  if (STRONG_PASSWORD.test(passwordInput.value)) {
+    setSuccess('Senha forte detectada.');
+    setError('');
+  } else {
+    setSuccess('');
+  }
+});
+
+document.getElementById('auth-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const email = emailInput.value.trim();
+
+  const email = emailInput.value.trim().toLowerCase();
   const password = passwordInput.value;
 
-  if (isLogin) {
-    const user = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
-    if (!user) return setError('Nenhum cadastro encontrado. Clique em Sign up.');
-    if (user.email !== email || user.password !== password) return setError('Credenciais inválidas.');
-    localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-    showDashboard(user);
+  if (!email || !password) {
+    setError('Preencha email e senha.');
     return;
   }
 
-  const payload = { name: nameInput.value.trim() || 'Usuário', email, password };
-  localStorage.setItem(USER_KEY, JSON.stringify(payload));
-  localStorage.setItem(SESSION_KEY, JSON.stringify(payload));
-  showDashboard(payload);
+  try {
+    if (isLogin) {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.message || 'Falha no login.');
+
+      localStorage.setItem(SESSION_KEY, JSON.stringify(data));
+      setSuccess('Login realizado com sucesso!');
+      setError('');
+      showDashboard(data);
+      return;
+    }
+
+    const name = nameInput.value.trim() || 'Usuário';
+    const confirm = confirmPasswordInput.value;
+
+    if (!STRONG_PASSWORD.test(password)) {
+      setError('Use senha forte: mínimo 10 chars com maiúscula, minúscula, número e símbolo.');
+      return;
+    }
+
+    if (password !== confirm) {
+      setError('As senhas não conferem.');
+      return;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password })
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.message || 'Falha no cadastro.');
+
+    localStorage.setItem(SESSION_KEY, JSON.stringify(data));
+    setSuccess('Cadastro realizado com sucesso! Redirecionando para dashboard...');
+    setError('');
+    showDashboard(data);
+  } catch (error) {
+    setSuccess('');
+    setError(error instanceof Error ? error.message : 'Erro inesperado');
+  }
 });
 
 document.getElementById('logout').addEventListener('click', () => {
   localStorage.removeItem(SESSION_KEY);
-  dashboardScreen.classList.add('hidden');
-  authScreen.classList.remove('hidden');
+  showAuth();
+  renderAuthMode();
 });
 
-const session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
-if (session) {
-  showDashboard(session);
-} else {
+function bootstrap() {
+  const session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+  if (session) {
+    showDashboard(session);
+    return;
+  }
+  showAuth();
   renderAuthMode();
 }
+
+bootstrap();

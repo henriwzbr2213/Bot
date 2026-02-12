@@ -4,6 +4,7 @@ import { prisma } from '../utils/prisma';
 import { GcpService } from './gcp';
 import { K8sService } from './k8s';
 import { InlineBuildQueue } from '../types/worker';
+import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 
 type CreateInput = {
   ownerDiscordId: string;
@@ -42,6 +43,35 @@ export class AppService {
   });
 
   authDiscord(userId: string) { return Promise.resolve({ userId, token: `stub-${userId}` }); }
+
+  async registerUser(data: { name: string; email: string; password: string }) {
+    const email = data.email.trim().toLowerCase();
+
+    // senha segura: mínimo 10 chars com maiúscula, minúscula, número e símbolo
+    const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{10,}$/;
+    if (!strongPassword.test(data.password)) {
+      throw new Error('Senha fraca. Use ao menos 10 caracteres com maiúscula, minúscula, número e símbolo.');
+    }
+
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) throw new Error('Email já cadastrado.');
+
+    const passwordHash = this.hashPassword(data.password);
+    const user = await prisma.user.create({ data: { name: data.name, email, passwordHash } });
+    return { id: user.id, name: user.name, email: user.email };
+  }
+
+  async loginUser(data: { email: string; password: string }) {
+    const email = data.email.trim().toLowerCase();
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) throw new Error('Usuário não encontrado.');
+
+    const ok = this.verifyPassword(data.password, user.passwordHash);
+    if (!ok) throw new Error('Senha inválida.');
+
+    return { id: user.id, name: user.name, email: user.email, token: `session-${user.id}` };
+  }
+
 
   async create(data: CreateInput) {
     const activeApps = await prisma.app.count({
@@ -160,6 +190,21 @@ export class AppService {
         suspendReason: shouldSuspend ? reason : current.suspendReason
       }
     });
+  }
+
+
+
+  private hashPassword(password: string): string {
+    const salt = randomBytes(16).toString('hex');
+    const derived = scryptSync(password, salt, 64).toString('hex');
+    return `${salt}:${derived}`;
+  }
+
+  private verifyPassword(password: string, stored: string): boolean {
+    const [salt, original] = stored.split(':');
+    if (!salt || !original) return false;
+    const derived = scryptSync(password, salt, 64).toString('hex');
+    return timingSafeEqual(Buffer.from(original, 'hex'), Buffer.from(derived, 'hex'));
   }
 
   private async mustGet(id: string) {

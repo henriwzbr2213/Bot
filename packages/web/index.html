@@ -15,10 +15,16 @@
           <input id="name" placeholder="Nome" class="hidden" />
           <input id="email" type="email" placeholder="Email" required />
           <input id="password" type="password" placeholder="Senha" required />
+          <input id="confirm-password" type="password" placeholder="Confirmar senha" class="hidden" />
+          <p id="password-hint" class="hint hidden">Use senha forte: 10+ chars, maiúscula, minúscula, número e símbolo.</p>
+
           <button class="btn btn-primary" type="submit" id="submit-btn">Login with email</button>
           <button class="btn" type="button">Login with Google</button>
           <button class="btn" type="button">Login with Discord</button>
+
           <p id="error" class="error hidden"></p>
+          <p id="success" class="success hidden"></p>
+
           <p class="switch-mode">
             <span id="switch-copy">Don't have an account?</span>
             <button id="switch-mode" type="button">Sign up</button>
@@ -32,23 +38,32 @@
     </div>
 
     <main id="dashboard-screen" class="dashboard hidden">
-      <header class="dashboard-header">
-        <div>
-          <h1>Dashboard</h1>
-          <p id="welcome"></p>
-        </div>
-        <div class="header-actions">
-          <button class="btn">Create resource</button>
-          <button id="logout" class="btn btn-primary">Logout</button>
-        </div>
+      <header class="topbar">
+        <div class="topbar-brand">IBM Cloud</div>
+        <input class="topbar-search" placeholder="Search resources and offerings..." />
+        <nav class="topbar-nav"><span>Catalog</span><span>Docs</span><span>Support</span><span>Manage</span></nav>
       </header>
 
-      <section class="cards-grid" id="cards-grid"></section>
+      <section class="dashboard-wrap">
+        <header class="dashboard-header">
+          <div>
+            <h1>Dashboard</h1>
+            <p id="welcome"></p>
+          </div>
+          <div class="header-actions">
+            <button class="btn dark">Edit dashboard</button>
+            <button class="btn btn-primary">Create resource</button>
+            <button id="logout" class="btn dark">Logout</button>
+          </div>
+        </header>
 
-      <section class="info-grid">
-        <div class="dash-card"><h3>Apps por região</h3><p>BR: 2 apps • US: 1 app</p></div>
-        <div class="dash-card"><h3>Plano atual</h3><p>Canary Premium</p></div>
-        <div class="dash-card"><h3>Free Tier</h3><p>Minecraft ativo por 30 dias</p></div>
+        <section class="cards-grid" id="cards-grid"></section>
+
+        <section class="info-grid">
+          <div class="dash-card"><h3>Resource summary</h3><p>No resources available to display.</p></div>
+          <div class="dash-card"><h3>Planned maintenance</h3><p>2 upcoming events on BR/US clusters.</p></div>
+          <div class="dash-card"><h3>Cloud status</h3><p>No issues</p></div>
+        </section>
       </section>
     </main>
 

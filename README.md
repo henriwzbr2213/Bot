@@ -63,6 +63,8 @@ Monorepo de uma plataforma estilo Discloud: upload de `.zip` pelo Discord, build
 ## Endpoints da API
 
 - `POST /auth/discord` (stub com `userId`)
+- `POST /auth/register` (cadastro em PostgreSQL com senha forte)
+- `POST /auth/login` (login com verificação de hash)
 - `POST /apps` (agora recebe metadados de plano e limites)
 - `GET /apps`
 - `GET /apps/:id`
@@ -174,6 +176,12 @@ Para produção:
 
 ## Frontend (login/cadastro + dashboard)
 
+- O frontend foi inspirado no layout de cloud console, agora com dashboard all-black no estilo IBM Cloud.
+- Fluxo atual:
+  - Cadastro em PostgreSQL via API (`/auth/register`) com senha forte obrigatória.
+  - Login via API (`/auth/login`) com verificação segura de senha hash (`scrypt` (Node crypto)).
+  - Dashboard para administração visual de recursos, plano e status Free Tier.
+  - Após cadastro/login com sucesso: redirecionamento automático para o dashboard.
 - O frontend foi inspirado no layout de cloud console: tela de autenticação split-screen e dashboard com cards de recursos, em HTML/CSS/JS para um MVP rápido.
 - Fluxo atual:
   - Cadastro com nome/email/senha (mock em `localStorage`).
