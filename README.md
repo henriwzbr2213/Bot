@@ -112,6 +112,9 @@ Monorepo de uma plataforma estilo Discloud: upload de `.zip` pelo Discord, build
    npm run dev
    # ou apenas frontend
    npm run dev -w @discloud-gke/web  # http://localhost:5173
+5. Suba API + bot:
+   ```bash
+   npm run dev
    ```
 
 ## Variáveis importantes do bot (tickets)
@@ -179,6 +182,11 @@ Para produção:
   - Login via API (`/auth/login`) com verificação segura de senha hash (`scrypt` (Node crypto)).
   - Dashboard para administração visual de recursos, plano e status Free Tier.
   - Após cadastro/login com sucesso: redirecionamento automático para o dashboard.
+- O frontend foi inspirado no layout de cloud console: tela de autenticação split-screen e dashboard com cards de recursos, em HTML/CSS/JS para um MVP rápido.
+- Fluxo atual:
+  - Cadastro com nome/email/senha (mock em `localStorage`).
+  - Login por email/senha (com botões sociais simulados).
+  - Dashboard para administração visual de recursos, plano e status Free Tier.
 - URL local padrão: `http://localhost:5173`.
 
 > Observação: autenticação está em modo local/mock no frontend para acelerar MVP. Em produção, conecte com endpoints reais de auth da API.
