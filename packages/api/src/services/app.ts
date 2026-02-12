@@ -93,6 +93,7 @@ export class AppService {
       throw error;
     }
 
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user) throw new Error('Usuário não encontrado.');
 
     const ok = this.verifyPassword(data.password, user.passwordHash);

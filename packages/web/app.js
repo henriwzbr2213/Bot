@@ -153,6 +153,9 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
       });
 
       const data = await parseApiResponse(response);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.message || 'Falha no login.');
+
       localStorage.setItem(SESSION_KEY, JSON.stringify(data));
       setSuccess('Login realizado com sucesso!');
       setError('');
@@ -169,6 +172,13 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
 
     if (password !== confirm) {
       throw new Error('As senhas não conferem.');
+      setError('Use senha forte: mínimo 10 chars com maiúscula, minúscula, número e símbolo.');
+      return;
+    }
+
+    if (password !== confirm) {
+      setError('As senhas não conferem.');
+      return;
     }
 
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
@@ -178,6 +188,9 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     });
 
     const data = await parseApiResponse(response);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.message || 'Falha no cadastro.');
+
     localStorage.setItem(SESSION_KEY, JSON.stringify(data));
     setSuccess('Cadastro realizado com sucesso! Redirecionando para dashboard...');
     setError('');
@@ -188,6 +201,7 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     setError(message.includes('Email já cadastrado') ? 'Já existe uma conta com este email.' : message);
   } finally {
     setLoading(false);
+    setError(error instanceof Error ? error.message : 'Erro inesperado');
   }
 });
 
