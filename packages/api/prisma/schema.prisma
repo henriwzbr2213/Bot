@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Region {
+  br
+  us
+}
+
+enum AppStatus {
+  created
+  uploading
+  building
+  deploying
+  running
+  stopped
+  error
+}
+
+model App {
+  id             String    @id @default(cuid())
+  ownerDiscordId String
+  name           String
+  region         Region
+  status         AppStatus @default(created)
+  runtime        String?   @default("unknown")
+  plan           String    @default("neurion-basic")
+  maxUploadMb    Int       @default(200)
+  cpuLimit       String    @default("1000m")
+  image          String?
+  zipGsUrl       String?
+  namespace      String?
+  deploymentName String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([ownerDiscordId, name])
+}
