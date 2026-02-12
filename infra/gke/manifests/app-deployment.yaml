@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-{{APP_ID}}
+  namespace: ns-u-{{OWNER_ID}}
+  labels:
+    app: app-{{APP_ID}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-{{APP_ID}}
+  template:
+    metadata:
+      labels:
+        app: app-{{APP_ID}}
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: app-{{APP_ID}}
+      containers:
+        - name: app
+          image: {{IMAGE}}
+          env:
+            - name: APP_ID
+              value: "{{APP_ID}}"
+            - name: OWNER_ID
+              value: "{{OWNER_ID}}"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "{{CPU_LIMIT}}"
+              memory: "512Mi"
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
