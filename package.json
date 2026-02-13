@@ -1,0 +1,20 @@
+{
+  "name": "discloud-gke",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Monorepo de plataforma estilo Discloud com Discord + GKE",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -ws",
+    "dev": "concurrently \"npm run dev -w @discloud-gke/api\" \"npm run dev -w @discloud-gke/bot\" \"npm run dev -w @discloud-gke/web\"",
+    "lint": "npm run lint -ws",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3"
+  }
+}

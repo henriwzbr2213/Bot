@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Region {
+  br
+  us
+}
+
+enum AppStatus {
+  created
+  uploading
+  building
+  deploying
+  running
+  stopped
+  error
+}
+
+enum FreeTierType {
+  bot
+  minecraft
+  hytale
+}
+
+enum FreeTierStatus {
+  active
+  suspended
+  expired
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model App {
+  id             String    @id @default(cuid())
+  ownerDiscordId String
+  name           String
+  region         Region
+  status         AppStatus @default(created)
+  runtime        String?   @default("unknown")
+  plan           String    @default("neurion-basic")
+  maxUploadMb    Int       @default(200)
+  cpuLimit       String    @default("1000m")
+  image          String?
+  zipGsUrl       String?
+  namespace      String?
+  deploymentName String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([ownerDiscordId, name])
+}
+
+model FreeTierService {
+  id             String         @id @default(cuid())
+  ownerDiscordId String
+  type           FreeTierType
+  targetAppId    String?
+  status         FreeTierStatus @default(active)
+  startsAt       DateTime       @default(now())
+  endsAt         DateTime
+  abuseStrikes   Int            @default(0)
+  suspendReason  String?
+  questionnaire  Json?
+  region         String?
+  forwardedToFeatherpanel Boolean @default(false)
+  featherpanelMessage String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([ownerDiscordId, status])
+}
