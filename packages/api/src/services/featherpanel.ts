@@ -27,7 +27,7 @@ export class FeatherPanelApiError extends Error {
 export class FeatherPanelClient {
   private readonly baseUrl: string;
   private readonly appKey: string;
-  private readonly appPrefixes = ['/api/application', '/api/v1/application'];
+  private readonly appPrefixes: string[];
 
   constructor() {
     if (!env.FEATHER_BASE_URL || !env.FEATHER_APP_KEY) {
@@ -35,6 +35,16 @@ export class FeatherPanelClient {
     }
     this.baseUrl = env.FEATHER_BASE_URL;
     this.appKey = env.FEATHER_APP_KEY;
+
+    const defaults = ['/api/application', '/api/v1/application', '/api/v1', '/api', '/application'];
+    const custom = env.FEATHER_APP_PREFIX ? [this.normalizePrefix(env.FEATHER_APP_PREFIX)] : [];
+    this.appPrefixes = Array.from(new Set([...custom, ...defaults]));
+  }
+
+  private normalizePrefix(prefix: string) {
+    const trimmed = prefix.trim();
+    const withSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    return withSlash.replace(/\/+$/, '');
   }
 
   private endpoint(prefix: string, path: string) {
@@ -51,14 +61,19 @@ export class FeatherPanelClient {
   }
 
   private shouldFallbackPrefix(status: number, bodySummary: string) {
-    if (status !== 404) return false;
-    return bodySummary.includes('api route does not exist') || bodySummary.includes('Not Found');
+    if (status === 404) return true;
+    if (status === 405) return true;
+    if (status >= 500 && bodySummary.includes('route does not exist')) return true;
+    return false;
   }
 
   async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+    const attempted: string[] = [];
     let lastError: FeatherPanelApiError | undefined;
 
     for (const prefix of this.appPrefixes) {
+      const fullEndpoint = `${prefix}${path}`;
+      attempted.push(fullEndpoint);
       const url = this.endpoint(prefix, path);
 
       for (let attempt = 1; attempt <= 3; attempt += 1) {
@@ -85,7 +100,7 @@ export class FeatherPanelClient {
           continue;
         }
 
-        const error = new FeatherPanelApiError(response.status, `${prefix}${path}`, summary);
+        const error = new FeatherPanelApiError(response.status, fullEndpoint, summary);
         if (this.shouldFallbackPrefix(response.status, summary)) {
           lastError = error;
           break;
@@ -95,7 +110,14 @@ export class FeatherPanelClient {
       }
     }
 
-    if (lastError) throw lastError;
+    if (lastError) {
+      throw new FeatherPanelApiError(
+        lastError.status,
+        lastError.endpoint,
+        `${lastError.responseSummary} | attempted_prefixes=${attempted.join(',')}`
+      );
+    }
+
     throw new Error(`Unexpected retry flow for FeatherPanel endpoint ${path}`);
   }
 

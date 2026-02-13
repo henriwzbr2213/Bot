@@ -25,6 +25,7 @@ const envSchema = z.object({
     .default('true'),
   FEATHER_BASE_URL: z.string().url().optional(),
   FEATHER_APP_KEY: z.string().min(1).optional(),
+  FEATHER_APP_PREFIX: z.string().min(1).optional(),
 });
 
 

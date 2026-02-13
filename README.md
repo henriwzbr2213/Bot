@@ -191,5 +191,6 @@ Para produção:
 - Configure no `.env`:
   - `FEATHER_BASE_URL`
   - `FEATHER_APP_KEY`
+  - `FEATHER_APP_PREFIX` (opcional para override do prefixo da API)
 - Endpoint Application API usado no provisionamento: `POST {FEATHER_BASE_URL}/api/application/users` e `POST {FEATHER_BASE_URL}/api/application/servers`.
 - Se não estiver configurado, o pedido segue salvo localmente e o bot ainda notifica o admin da host.
