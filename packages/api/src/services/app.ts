@@ -4,6 +4,7 @@ import { prisma } from '../utils/prisma';
 import { GcpService } from './gcp';
 import { K8sService } from './k8s';
 import { InlineBuildQueue } from '../types/worker';
+import { provisionFreeTier } from '../provision/freeTier';
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 
 type CreateInput = {
@@ -93,7 +94,6 @@ export class AppService {
       throw error;
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
     if (!user) throw new Error('Usuário não encontrado.');
 
     const ok = this.verifyPassword(data.password, user.passwordHash);
@@ -180,25 +180,52 @@ export class AppService {
 
 
 
-  async createFreeTier(data: { ownerDiscordId: string; type: 'bot' | 'minecraft' | 'hytale'; targetAppId?: string }) {
+  async createFreeTier(data: {
+    ownerDiscordId: string;
+    type: 'bot' | 'minecraft' | 'hytale';
+    targetAppId?: string;
+    serverPresetId?: string;
+    serverName?: string;
+    locationId?: number;
+    nodeId?: number;
+  }) {
     const active = await prisma.freeTierService.count({ where: { ownerDiscordId: data.ownerDiscordId, status: 'active' } });
     if (active >= 1) throw new Error('Você já possui um serviço Free Tier ativo.');
 
-    if (data.type === 'bot' && !data.targetAppId) {
-      throw new Error('Free tier de bot exige targetAppId.');
-    }
-
     const endsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const presetByType: Record<'bot' | 'minecraft' | 'hytale', string> = {
+      bot: 'bot-nodejs',
+      minecraft: 'minecraft-paper',
+      hytale: 'bot-nodejs'
+    };
 
-    return prisma.freeTierService.create({
+    const provisioned = await provisionFreeTier({
+      discordUserId: data.ownerDiscordId,
+      locationId: data.locationId,
+      nodeId: data.nodeId,
+      serverPresetId: data.serverPresetId ?? presetByType[data.type],
+      serverName: data.serverName
+    });
+
+    const saved = await prisma.freeTierService.create({
       data: {
         ownerDiscordId: data.ownerDiscordId,
         type: data.type,
         targetAppId: data.targetAppId,
         status: 'active',
-        endsAt
+        endsAt,
+        forwardedToFeatherpanel: true,
+        featherpanelMessage: JSON.stringify({
+          panelUserId: provisioned.panelUserId,
+          serverId: provisioned.serverId,
+          serverUuid: provisioned.serverUuid,
+          nodeId: provisioned.nodeId,
+          allocationId: provisioned.allocationId
+        })
       }
     });
+
+    return { ...saved, provisioned };
   }
 
   listFreeTier(ownerDiscordId: string) {

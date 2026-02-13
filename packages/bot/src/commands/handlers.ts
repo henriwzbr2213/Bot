@@ -5,7 +5,8 @@ import {
   Interaction,
   Message,
   PermissionFlagsBits,
-  StringSelectMenuBuilder
+  StringSelectMenuBuilder,
+  type TextChannel
 } from 'discord.js';
 import { REGIONS, Region, USER_PLANS, type PlanInfo } from '@discloud-gke/shared';
 import { ApiClient, FreeTierApiClient } from '../services/apiClient';
@@ -13,7 +14,15 @@ import { ApiClient, FreeTierApiClient } from '../services/apiClient';
 const api = new ApiClient();
 const freeTierApi = new FreeTierApiClient();
 
+const FREETIER_QUESTIONS = [
+  { key: 'projectName', label: 'Qual nome do projeto/servidor?' },
+  { key: 'useCase', label: 'Qual o objetivo de uso (resumo)?' },
+  { key: 'estimatedResources', label: 'Qual consumo estimado (CPU/RAM/Jogadores)?' },
+  { key: 'contact', label: 'Qual contato principal (Discord/tag)?' }
+] as const;
+
 type TicketMode = 'up' | 'commit' | 'freetier';
+type FreetierType = 'bot' | 'minecraft' | 'hytale';
 
 type TicketSession = {
   ownerId: string;
@@ -22,7 +31,10 @@ type TicketSession = {
   region?: Region;
   targetAppId?: string;
   targetAppName?: string;
-  freetierType?: 'bot' | 'minecraft' | 'hytale';
+  freetierType?: FreetierType;
+  freetierAnswers?: Record<string, string>;
+  freetierQuestionIndex?: number;
+  freetierSubmitted?: boolean;
 };
 
 type BotApp = {
@@ -47,6 +59,26 @@ function resolvePlan(message: Message): PlanInfo | null {
   if (memberRoles.cache.some((r) => r.name === 'Canary Premium')) return USER_PLANS.find((p) => p.id === 'canary-premium') ?? null;
   if (memberRoles.cache.some((r) => r.name === 'Neurion Basic')) return USER_PLANS.find((p) => p.id === 'neurion-basic') ?? null;
   return null;
+}
+
+async function sendFreeTierToAdmin(channel: TextChannel, session: TicketSession) {
+  const adminChannelId = process.env.HOST_ADMIN_CHANNEL_ID;
+  if (!adminChannelId) return;
+
+  const admin = channel.guild.channels.cache.get(adminChannelId);
+  if (!admin || admin.type !== ChannelType.GuildText) return;
+
+  const answers = session.freetierAnswers ?? {};
+  const lines = FREETIER_QUESTIONS.map((q) => `- **${q.label}**: ${answers[q.key] ?? 'não informado'}`).join('\n');
+
+  await admin.send(
+    `📨 **Novo pedido FreeTier**\n` +
+      `Usuário: <@${session.ownerId}>\n` +
+      `Tipo: **${session.freetierType?.toUpperCase()}**\n` +
+      `Região: **${session.region?.toUpperCase() ?? 'N/A'}**\n` +
+      `App alvo: **${session.targetAppName ?? session.targetAppId ?? 'N/A'}**\n\n` +
+      `**Questionário:**\n${lines}`
+  );
 }
 
 async function openTicket(message: Message, mode: TicketMode, plan?: PlanInfo, apps: BotApp[] = []) {
@@ -105,7 +137,7 @@ async function openTicket(message: Message, mode: TicketMode, plan?: PlanInfo, a
     ? 'Selecione região e envie `.zip` para criar app automaticamente.'
     : mode === 'commit'
       ? 'Selecione região e app alvo, depois envie `.zip` para rebuild.'
-      : 'Selecione região + tipo de serviço (bot/minecraft/hytale). Para tipo bot, envie `.zip`.\nValidade Free Tier: 30 dias. Em caso de abuso de recursos o serviço é suspenso.';
+      : 'Selecione região + tipo de serviço. Depois responda o questionário e o bot enviará para o admin da host.';
 
   await channel.send({
     content:
@@ -119,9 +151,62 @@ async function openTicket(message: Message, mode: TicketMode, plan?: PlanInfo, a
   await message.reply(`Ticket aberto: <#${channel.id}>`);
 }
 
+async function handleFreeTierQuestionnaire(message: Message, session: TicketSession): Promise<boolean> {
+  if (session.mode !== 'freetier' || !session.freetierType) return false;
+  if (session.freetierSubmitted) return false;
+  if (message.content.startsWith(process.env.BOT_PREFIX ?? '.')) return false;
+
+  const idx = session.freetierQuestionIndex ?? 0;
+  if (idx >= FREETIER_QUESTIONS.length) return false;
+
+  const current = FREETIER_QUESTIONS[idx];
+  session.freetierAnswers = session.freetierAnswers ?? {};
+  session.freetierAnswers[current.key] = message.content.trim().slice(0, 500);
+  session.freetierQuestionIndex = idx + 1;
+  ticketSessions.set(message.channel.id, session);
+
+  const next = FREETIER_QUESTIONS[idx + 1];
+  if (next) {
+    await message.reply(`✅ Resposta salva. Próxima pergunta:\n**${next.label}**`);
+    return true;
+  }
+
+  const payload = {
+    ownerDiscordId: session.ownerId,
+    type: session.freetierType,
+    targetAppId: session.targetAppId,
+    region: session.region,
+    questionnaire: session.freetierAnswers
+  };
+
+  const created = await freeTierApi.createFreeTierService(payload);
+  session.freetierSubmitted = true;
+  ticketSessions.set(message.channel.id, session);
+
+  if (message.channel.type === ChannelType.GuildText) {
+    await sendFreeTierToAdmin(message.channel, session);
+  }
+
+  await message.reply(
+    `📨 Pedido FreeTier enviado para análise da host.\n` +
+      `Tipo: **${session.freetierType.toUpperCase()}**\n` +
+      `Validade inicial: até ${new Date(created.endsAt).toLocaleDateString('pt-BR')}\n` +
+      `Agora aguarde o admin da host aprovar.`
+  );
+
+  if (session.freetierType === 'bot') {
+    await message.reply('Agora envie o `.zip` neste ticket para anexar ao pedido de bot.');
+  }
+
+  return true;
+}
+
 async function processZipInTicket(message: Message) {
   const session = ticketSessions.get(message.channel.id);
   if (!session || message.author.id !== session.ownerId) return;
+
+  if (await handleFreeTierQuestionnaire(message, session)) return;
+
   const attachment = message.attachments.first();
   if (!attachment) return;
 
@@ -130,7 +215,9 @@ async function processZipInTicket(message: Message) {
 
   if (session.mode === 'commit' && !session.targetAppId) return void (await message.reply('Escolha o bot/app alvo no menu antes do upload.'));
   if (session.mode === 'freetier' && session.freetierType !== 'bot') return;
-  if (session.mode === 'freetier' && !session.freetierType) return void (await message.reply('Escolha o tipo de serviço Free Tier primeiro.'));
+  if (session.mode === 'freetier' && !session.freetierSubmitted) {
+    return void (await message.reply('Responda primeiro o questionário do FreeTier.'));
+  }
 
   const sizeMb = (attachment.size ?? 0) / (1024 * 1024);
   if (session.plan && sizeMb > session.plan.maxUploadMb) return void (await message.reply(`Arquivo maior que limite (${session.plan.maxUploadMb}MB).`));
@@ -162,8 +249,6 @@ async function processZipInTicket(message: Message) {
     if (!picked) return void (await message.reply('Você precisa ter ao menos um bot/app para Free Tier do tipo bot.'));
     appId = picked.id;
     appName = picked.name;
-
-    await freeTierApi.createFreeTierService({ ownerDiscordId: session.ownerId, type: 'bot', targetAppId: picked.id });
   }
 
   if (!appId) return void (await message.reply('Não foi possível identificar a app alvo.'));
@@ -258,18 +343,17 @@ export async function handleSelectInteraction(interaction: Interaction) {
   }
 
   if (interaction.customId.startsWith('ticket_freetier_type:')) {
-    const type = interaction.values[0] as 'bot' | 'minecraft' | 'hytale';
+    const type = interaction.values[0] as FreetierType;
     session.freetierType = type;
+    session.freetierQuestionIndex = 0;
+    session.freetierAnswers = {};
+    session.freetierSubmitted = false;
     ticketSessions.set(channelId, session);
 
-    if (type === 'minecraft' || type === 'hytale') {
-      const created = await freeTierApi.createFreeTierService({ ownerDiscordId: session.ownerId, type });
-      return void (await interaction.reply({
-        content: `Serviço Free Tier **${type}** criado por 30 dias (até ${new Date(created.endsAt).toLocaleDateString('pt-BR')}).\nSe houver abuso de recursos, o serviço será suspenso automaticamente.`,
-        ephemeral: true
-      }));
-    }
-
-    return void (await interaction.reply({ content: 'Free Tier do tipo **bot** selecionado. Agora envie o `.zip` no ticket.', ephemeral: true }));
+    const first = FREETIER_QUESTIONS[0];
+    return void (await interaction.reply({
+      content: `Tipo **${type.toUpperCase()}** selecionado.\nResponda o questionário para enviar ao admin da host.\n\n**Pergunta 1/${FREETIER_QUESTIONS.length}: ${first.label}**`,
+      ephemeral: true
+    }));
   }
 }

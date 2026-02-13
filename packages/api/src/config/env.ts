@@ -22,7 +22,16 @@ const envSchema = z.object({
   MOCK_GCP: z
     .string()
     .transform((v) => v === 'true')
-    .default('true')
+    .default('true'),
+  FEATHER_BASE_URL: z.string().url().optional(),
+  FEATHER_APP_KEY: z.string().min(1).optional(),
 });
 
-export const env = envSchema.parse(process.env);
+
+const parsed = envSchema.parse(process.env);
+
+if ((parsed.FEATHER_BASE_URL && !parsed.FEATHER_APP_KEY) || (!parsed.FEATHER_BASE_URL && parsed.FEATHER_APP_KEY)) {
+  throw new Error('FEATHER_BASE_URL and FEATHER_APP_KEY must be set together.');
+}
+
+export const env = parsed;

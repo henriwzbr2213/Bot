@@ -102,7 +102,7 @@ export class FreeTierApiClient extends ApiClient {
     return res.json();
   }
 
-  async createFreeTierService(payload: { ownerDiscordId: string; type: 'bot' | 'minecraft' | 'hytale'; targetAppId?: string }) {
+  async createFreeTierService(payload: { ownerDiscordId: string; type: 'bot' | 'minecraft' | 'hytale'; targetAppId?: string; region?: 'br' | 'us'; questionnaire?: Record<string, string> }) {
     const res = await fetch(`${API_BASE_URL}/freetier/services`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

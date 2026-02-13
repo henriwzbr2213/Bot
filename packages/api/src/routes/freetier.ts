@@ -7,9 +7,13 @@ export async function freeTierRoutes(app: FastifyInstance) {
 
   app.post('/freetier/services', async (req) => {
     const body = z.object({
-      ownerDiscordId: z.string(),
-      type: z.enum(['bot', 'minecraft', 'hytale']),
-      targetAppId: z.string().optional()
+      ownerDiscordId: z.string().min(1),
+      type: z.enum(['bot', 'minecraft', 'hytale']).default('bot'),
+      targetAppId: z.string().optional(),
+      serverPresetId: z.string().min(1).optional(),
+      serverName: z.string().optional(),
+      locationId: z.number().int().positive().optional(),
+      nodeId: z.number().int().positive().optional()
     }).parse(req.body);
 
     return service.createFreeTier(body);

@@ -73,6 +73,10 @@ model FreeTierService {
   endsAt         DateTime
   abuseStrikes   Int            @default(0)
   suspendReason  String?
+  questionnaire  Json?
+  region         String?
+  forwardedToFeatherpanel Boolean @default(false)
+  featherpanelMessage String?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 

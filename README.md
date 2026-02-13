@@ -118,6 +118,7 @@ Monorepo de uma plataforma estilo Discloud: upload de `.zip` pelo Discord, build
 
 - `TICKET_CATEGORY_ID`: categoria Discord para tickets (opcional)
 - `TICKET_STAFF_ROLE_ID`: role staff que pode ver tickets (opcional)
+- `HOST_ADMIN_CHANNEL_ID`: canal Discord do admin da host para receber pedidos FreeTier
 
 ## Deploy em GCP (produção)
 
@@ -179,17 +180,16 @@ Para produção:
   - Login via API (`/auth/login`) com verificação segura de senha hash (`scrypt` (Node crypto)).
   - Dashboard para administração visual de recursos, plano e status Free Tier.
   - Após cadastro/login com sucesso: redirecionamento automático para o dashboard.
-- O frontend foi inspirado no layout de cloud console, agora com dashboard all-black no estilo IBM Cloud.
-- Fluxo atual:
-  - Cadastro em PostgreSQL via API (`/auth/register`) com senha forte obrigatória.
-  - Login via API (`/auth/login`) com verificação segura de senha hash (`scrypt` (Node crypto)).
-  - Dashboard para administração visual de recursos, plano e status Free Tier.
-  - Após cadastro/login com sucesso: redirecionamento automático para o dashboard.
-- O frontend foi inspirado no layout de cloud console: tela de autenticação split-screen e dashboard com cards de recursos, em HTML/CSS/JS para um MVP rápido.
-- Fluxo atual:
-  - Cadastro com nome/email/senha (mock em `localStorage`).
-  - Login por email/senha (com botões sociais simulados).
-  - Dashboard para administração visual de recursos, plano e status Free Tier.
 - URL local padrão: `http://localhost:5173`.
 
 > Observação: autenticação está em modo local/mock no frontend para acelerar MVP. Em produção, conecte com endpoints reais de auth da API.
+
+
+## Integração FeatherPanel
+
+- A API suporta encaminhamento de pedidos FreeTier para FeatherPanel.
+- Configure no `.env`:
+  - `FEATHER_BASE_URL`
+  - `FEATHER_APP_KEY`
+- Endpoint Application API usado no provisionamento: `POST {FEATHER_BASE_URL}/api/application/users` e `POST {FEATHER_BASE_URL}/api/application/servers`.
+- Se não estiver configurado, o pedido segue salvo localmente e o bot ainda notifica o admin da host.
